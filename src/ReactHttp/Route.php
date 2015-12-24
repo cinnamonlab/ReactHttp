@@ -58,8 +58,7 @@ class Route
                 if (preg_match("/^\:(.*)$/", $path_element, $match)
                     || preg_match("/^\{(.*)\}$/", $path_element, $match)
                 ) {
-                    Input::set($match[1], $request_path[$key]);
-                    $restInput[]=$request_path[$key];
+                    $restInput[$match[1]]=$request_path[$key];
                 } else {
                     if (!isset($request_path[$key]) ||
                         $request_path[$key] != $path_element
@@ -73,8 +72,10 @@ class Route
         }
     }
 
-    public function perform( Request $request, Response $response)
+    public function perform( Request $request, Response $response, $jsonData)
     {
+        $httpRequest = new HttpRequest($request,$jsonData);
+
         $method = $request->getMethod();
         $path = $request->getPath();
 
@@ -105,13 +106,18 @@ class Route
 
             if ($target_controller == null) {
                 // not found
-                HttpResponse::html($response,"URL not found!",400);
+                throw new ReactHttpException("URL not found!",404);
 
             } else {
+                foreach ($restParams as $key => $restParam) {
+                    $httpRequest->set($key,$restParam);
+                }
 
-                $inputs = array($request,$response);
+                $inputs = array($httpRequest,$response);
 
-                $inputs = array_merge($inputs,$restParams);
+                $input_params = array_values($restParams);
+
+                $inputs = array_merge($inputs,$input_params);
 
                 if (is_callable($target_controller)) {
                     call_user_func_array($target_controller, $inputs);
@@ -134,7 +140,7 @@ class Route
 
         } else {
             // not found
-            HttpResponse::html($response,"URL not found!",400);
+            throw new ReactHttpException("URL not found!",404);
         }
 
     }

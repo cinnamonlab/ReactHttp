@@ -9,13 +9,28 @@
 require 'vendor/autoload.php';
 require "example/route.php";
 
-$i = 0;
-$app = function ($request, $response) use ($i) {
-    try {
-        \ReactHttp\Route::getInstance()->perform($request,$response);
-    } catch (Exception $e) {
-        debug($e->getTraceAsString());
-    }
+$app = function (\React\Http\Request $request,\React\Http\Response $response) {
+    $request->on("data",function($data) use ($request,$response) {
+        try {
+
+            if($request->getMethod()!="GET") {
+                $json_data = json_decode($data);
+            } else {
+                $json_data=new stdClass();
+            }
+
+            if($json_data!=null && $json_data!=false) {
+                \ReactHttp\Route::getInstance()->perform($request,$response,$json_data);
+            } else {
+                // throw exeption about data is wrong
+                throw new \ReactHttp\Exception\ReactHttpException("Data is not follow Json format");
+            }
+
+        } catch (Exception $e) {
+            \ReactHttp\HttpResponse::html($response,$e->getMessage(),$e->getCode());
+        }
+    });
+
 };
 
 $loop = React\EventLoop\Factory::create();
